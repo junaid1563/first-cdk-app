@@ -37,7 +37,6 @@ export class DynamoDbKmsKeyStack extends cdk.Stack {
       enableKeyRotation: false,
       enabled: true,
       multiRegion: false,
-      pendingWindowInDays: 2,
       tags: [
         {
           key: "region",
@@ -47,7 +46,7 @@ export class DynamoDbKmsKeyStack extends cdk.Stack {
     });
 
     // output kmskey arn
-    
+
     new cdk.CfnOutput(this, "kms-keyid-arn", {
       value: kmsKey.attrArn,
       description: "arn for kms key",

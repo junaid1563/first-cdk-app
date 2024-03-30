@@ -17,15 +17,16 @@ export class DynamoDbStack extends cdk.Stack {
       kmsKeyArn
     );
 
+    const dynamoDbKmsKeySr = kms.Key.fromKeyArn(
+      this,
+      "dynamodb-kms-key-sr",
+      "arn:aws:kms:us-west-2:876567513862:key/be75405d-f5a5-4bdb-b7d9-af64dd114a21"
+    );
+
     // global dynamodb table
     const StudentsTable = new dynamodb.CfnGlobalTable(this, "student-table", {
       attributeDefinitions: [
         { attributeName: "firstname", attributeType: "S" },
-        { attributeName: "lastname", attributeType: "S" },
-        {
-          attributeName: "roll_number",
-          attributeType: "N",
-        },
         {
           attributeName: "age",
           attributeType: "N",
@@ -33,6 +34,13 @@ export class DynamoDbStack extends cdk.Stack {
         { attributeName: "class", attributeType: "N" },
       ], // Required
       billingMode: "PAY_PER_REQUEST",
+      sseSpecification: {
+        sseEnabled: true,
+        sseType: "KMS",
+      },
+      streamSpecification: {
+        streamViewType: dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
+      },
       globalSecondaryIndexes: [
         {
           indexName: "age_index",
@@ -58,7 +66,7 @@ export class DynamoDbStack extends cdk.Stack {
       replicas: [
         {
           region: "us-east-1",
-          deletionProtectionEnabled: true,
+          deletionProtectionEnabled: false,
           tags: [{ key: "region", value: "primary" }],
           pointInTimeRecoverySpecification: {
             pointInTimeRecoveryEnabled: true,
@@ -69,13 +77,13 @@ export class DynamoDbStack extends cdk.Stack {
         },
         {
           region: "us-west-2",
-          deletionProtectionEnabled: true,
+          deletionProtectionEnabled: false,
           tags: [{ key: "region", value: "secondary" }],
           pointInTimeRecoverySpecification: {
             pointInTimeRecoveryEnabled: true,
           },
           sseSpecification: {
-            kmsMasterKeyId: dynamoDbKmsKey.keyId,
+            kmsMasterKeyId: dynamoDbKmsKeySr.keyId,
           },
         },
       ], // Required
