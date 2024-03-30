@@ -6,10 +6,18 @@ import * as kms from "aws-cdk-lib/aws-kms";
 export class DynamoDbStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
-    const dynamoDbKmsKey = kms.Key.fromLookup(this, "dynamo-db-kmsKey", {
-      aliasName: "dynamoDbKmsKey",
-    });
 
+    // importing kmskey ARN output
+    const kmsKeyArn = cdk.Fn.importValue("kmsKeyArn");
+
+    // kmskey from ARN value
+    const dynamoDbKmsKey = kms.Key.fromKeyArn(
+      this,
+      "dynamodb-kms-key",
+      kmsKeyArn
+    );
+
+    // global dynamodb table
     const StudentsTable = new dynamodb.CfnGlobalTable(this, "student-table", {
       attributeDefinitions: [
         { attributeName: "firstname", attributeType: "S" },

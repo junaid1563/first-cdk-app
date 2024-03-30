@@ -46,13 +46,12 @@ export class DynamoDbKmsKeyStack extends cdk.Stack {
       ],
     });
 
-    // attachingg alias to kms key
-    const kmsKeyAlias = new kms.CfnAlias(this, "kmsKey-alias", {
-      aliasName: "dynamoDbKmsKey", // Required
-      targetKeyId: kmsKey.attrKeyId, // Required
-    });
-
-    console.log(`kms ky alias : ${kmsKeyAlias}`);
+    // output kmskey arn
     
+    new cdk.CfnOutput(this, "kms-keyid-arn", {
+      value: kmsKey.attrArn,
+      description: "arn for kms key",
+      exportName: "kmsKeyArn",
+    });
   }
 }
