@@ -7,6 +7,7 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
 import { join } from "path";
 import { HttpMethod } from "aws-cdk-lib/aws-events";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 
 export class DomainServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -41,12 +42,21 @@ export class DomainServiceStack extends cdk.Stack {
       actions: ["secretsmanager:GetSecretValue"],
       resources: ["*"],
     });
+
+// kms policy statement
+const lambdaKMSPolicyStatement = new iam.PolicyStatement({
+  effect: iam.Effect.ALLOW,
+  actions: ["kms:Encrypt","kms:Decrypt"],
+  resources: ["*"],
+});
+
     // lambda policy
 
     const lambdaPolicy = new iam.Policy(this, "lambda-dynamodb-policy", {
       statements: [
         lambdaDynamoDbPolicyStatement,
         lambdaSecretsManagerPolicyStatement,
+        lambdaKMSPolicyStatement
       ],
     });
 
@@ -54,29 +64,30 @@ export class DomainServiceStack extends cdk.Stack {
     const postLambdaLogs = new LogGroup(this, "post-lambda-logs");
 
     const getLambdaLogs = new LogGroup(this, "get-lambda-logs");
+    // environment variable
+    const environment = {
+      REGION: cdk.Stack.of(this).region,
+      StudentsTable: "studentDomain",
+    };
 
     // lambda function
-    const postLambdaFunction = new lambda.Function(this, "post-lambda", {
+    const postLambdaFunction = new NodejsFunction(this, "post-lambda", {
       functionName: "post-lambda",
       runtime: lambda.Runtime.NODEJS_20_X,
-      code: lambda.Code.fromAsset(join("./lambda/postLambda")),
-      handler: "index.handler",
+      entry: join("./lambda/postLambda/index.ts"),
+      handler: "handler",
       timeout: cdk.Duration.seconds(15),
-      environment: {
-        REGION: cdk.Stack.of(this).region,
-      },
+      environment: environment,
       logGroup: postLambdaLogs,
     });
 
-    const getLambdaFunction = new lambda.Function(this, "get-lambda", {
+    const getLambdaFunction = new NodejsFunction(this, "get-lambda", {
       functionName: "get-lambda",
       runtime: lambda.Runtime.NODEJS_20_X,
-      code: lambda.Code.fromAsset(join("./lambda/getLambda")),
-      handler: "index.handler",
+      entry: join("./lambda/getLambda/index.ts"),
+      handler: "handler",
       timeout: cdk.Duration.seconds(15),
-      environment: {
-        REGION: cdk.Stack.of(this).region,
-      },
+      environment: environment,
       logGroup: getLambdaLogs,
     });
 
