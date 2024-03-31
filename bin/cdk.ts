@@ -5,6 +5,7 @@ import { DynamoDbStack } from "../lib/DynamDbStack";
 import { DynamoDbKmsKeyStack } from "../lib/DynamoDbKmsKeyStack";
 import merge = require("lodash.merge");
 import { config } from "../config";
+import { DomainServiceStack } from "../lib/DomainServiceStack";
 
 const app = new cdk.App();
 const envConfigPr = {
@@ -40,5 +41,12 @@ const DynamoDbStackPrimary = new DynamoDbStack(
   appCofigPr
 );
 
+const DomainServiceStackPrimary = new DomainServiceStack(
+  app,
+  "domainservice-stack",
+  appCofigPr
+);
+
 DynamoDbStackPrimary.addDependency(DynamoDbKmsKeyStackPrimary);
 DynamoDbStackPrimary.addDependency(DynamoDbKmsKeyStackSecondary);
+DomainServiceStackPrimary.addDependency(DynamoDbStackPrimary);

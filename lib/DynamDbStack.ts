@@ -90,5 +90,11 @@ export class DynamoDbStack extends cdk.Stack {
       ], // Required
       tableName: "studentDomain",
     });
+
+    const tableARN = new cdk.CfnOutput(this, "students-table-arn", {
+      value: StudentsTable.attrArn,
+      exportName: "studentsTableArn",
+      description: "Arn of students table"
+    });
   }
 }
