@@ -11,6 +11,18 @@ export const handler = async (
 
   const data: PostData = JSON.parse(event?.body!);
   console.log(`Data from post api : ${JSON.stringify(data)}`);
+  if (
+    !data.firstname ||
+    !data.age ||
+    !data.class ||
+    !data.lastname ||
+    !data.rollNumber
+  ) {
+    return {
+      statusCode: 406,
+      body: "Please enter correct data",
+    };
+  }
 
   const input = {
     TableName: process.env.StudentsTable,
