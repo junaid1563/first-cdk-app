@@ -37,7 +37,7 @@ const DynamoDbKmsKeyStackSecondary = new DynamoDbKmsKeyStack(
 const DynamoDbStackPrimary = new DynamoDbStack(
   app,
   "dynamodb-stack",
-  appCofigSr
+  appCofigPr
 );
 
 DynamoDbStackPrimary.addDependency(DynamoDbKmsKeyStackPrimary);
