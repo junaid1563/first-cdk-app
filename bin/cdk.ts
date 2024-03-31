@@ -3,6 +3,8 @@ import "source-map-support/register";
 import * as cdk from "aws-cdk-lib";
 import { DynamoDbStack } from "../lib/DynamDbStack";
 import { DynamoDbKmsKeyStack } from "../lib/DynamoDbKmsKeyStack";
+import merge = require("lodash.merge");
+import { config } from "../config";
 
 const app = new cdk.App();
 const envConfigPr = {
@@ -15,25 +17,28 @@ const envConfigSr = {
   region: "us-west-2",
 };
 
+const appCofigPr = merge({ env: envConfigPr }, config.app);
+const appCofigSr = merge({ env: envConfigSr }, config.app);
+
+console.log(`appConfigPr ${JSON.stringify(appCofigPr)}`);
+console.log(`appConfigSr ${JSON.stringify(appCofigSr)}`);
 
 const DynamoDbKmsKeyStackPrimary = new DynamoDbKmsKeyStack(
   app,
   "kms-key-stackPr",
-  {
-    env: envConfigPr,
-  }
+  appCofigPr
 );
 const DynamoDbKmsKeyStackSecondary = new DynamoDbKmsKeyStack(
   app,
   "kms-key-stackSr",
-  {
-    env: envConfigSr,
-  }
+  appCofigSr
 );
 
-const DynamoDbStackPrimary = new DynamoDbStack(app, "dynamodb-stack", {
-  env: envConfigPr,
-});
+const DynamoDbStackPrimary = new DynamoDbStack(
+  app,
+  "dynamodb-stack",
+  appCofigSr
+);
 
 DynamoDbStackPrimary.addDependency(DynamoDbKmsKeyStackPrimary);
 DynamoDbStackPrimary.addDependency(DynamoDbKmsKeyStackSecondary);

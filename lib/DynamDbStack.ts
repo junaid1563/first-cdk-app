@@ -2,9 +2,10 @@ import * as cdk from "aws-cdk-lib";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import { Construct } from "constructs";
 import * as kms from "aws-cdk-lib/aws-kms";
+import { DynamoDbStackProps } from "./@types/interfaces";
 
 export class DynamoDbStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props: DynamoDbStackProps) {
     super(scope, id, props);
 
     // importing kmskey ARN output
@@ -20,7 +21,7 @@ export class DynamoDbStack extends cdk.Stack {
     const dynamoDbKmsKeySr = kms.Key.fromKeyArn(
       this,
       "dynamodb-kms-key-sr",
-      "arn:aws:kms:us-west-2:876567513862:key/be75405d-f5a5-4bdb-b7d9-af64dd114a21"
+      props.secondaryKmskeyArn
     );
 
     // global dynamodb table

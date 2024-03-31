@@ -2,9 +2,10 @@ import * as cdk from "aws-cdk-lib";
 import * as kms from "aws-cdk-lib/aws-kms";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { Construct } from "constructs";
+import { KmsKeyProps } from "./@types/interfaces";
 
 export class DynamoDbKmsKeyStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props?: KmsKeyProps) {
     super(scope, id, props);
     // policy for kms key
     // add dynamo db policies
