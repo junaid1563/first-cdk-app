@@ -6,6 +6,7 @@ import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as iam from "aws-cdk-lib/aws-iam";
 import { LogGroup } from "aws-cdk-lib/aws-logs";
 import { join } from "path";
+import { HttpMethod } from "aws-cdk-lib/aws-events";
 
 export class DomainServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -50,17 +51,62 @@ export class DomainServiceStack extends cdk.Stack {
     });
 
     // log group for lambda
-    const lambdaLogs = new LogGroup(this, "post-lambda-logs");
+    const postLambdaLogs = new LogGroup(this, "post-lambda-logs");
+
+    const getLambdaLogs = new LogGroup(this, "get-lambda-logs");
 
     // lambda function
     const postLambdaFunction = new lambda.Function(this, "post-lambda", {
       functionName: "post-lambda",
       runtime: lambda.Runtime.NODEJS_20_X,
-      code: lambda.Code.fromAsset("./lambda/postLambda"),
-      handler: "handler",
+      code: lambda.Code.fromAsset(join("./lambda/postLambda")),
+      handler: "index.handler",
       timeout: cdk.Duration.seconds(15),
-      environment: {},
-      logGroup: lambdaLogs,
+      environment: {
+        REGION: cdk.Stack.of(this).region,
+      },
+      logGroup: postLambdaLogs,
     });
+
+    const getLambdaFunction = new lambda.Function(this, "get-lambda", {
+      functionName: "get-lambda",
+      runtime: lambda.Runtime.NODEJS_20_X,
+      code: lambda.Code.fromAsset(join("./lambda/getLambda")),
+      handler: "index.handler",
+      timeout: cdk.Duration.seconds(15),
+      environment: {
+        REGION: cdk.Stack.of(this).region,
+      },
+      logGroup: getLambdaLogs,
+    });
+
+    // attach policy
+
+    postLambdaFunction.role?.attachInlinePolicy(lambdaPolicy);
+    getLambdaFunction.role?.attachInlinePolicy(lambdaPolicy);
+    // api gateway
+
+    const api = new apigateway.RestApi(this, "dynamodb-api", {
+      endpointTypes: [apigateway.EndpointType.REGIONAL],
+      description: "Rest api for dynamodb operatios",
+    });
+
+    // resource
+    const addStudentResource = api.root.addResource("add-student");
+    const getStudentResource = api.root.addResource("get-student");
+
+    // lambda integration
+
+    const postLambdaIntegration = new apigateway.LambdaIntegration(
+      postLambdaFunction
+    );
+
+    const getLambdaIntegration = new apigateway.LambdaIntegration(
+      getLambdaFunction
+    );
+
+    // method
+    addStudentResource.addMethod(HttpMethod.POST, postLambdaIntegration);
+    getStudentResource.addMethod(HttpMethod.GET, getLambdaIntegration);
   }
 }
