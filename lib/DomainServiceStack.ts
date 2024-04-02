@@ -8,6 +8,8 @@ import { LogGroup } from "aws-cdk-lib/aws-logs";
 import { join } from "path";
 import { HttpMethod } from "aws-cdk-lib/aws-events";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
+import { Queue } from "aws-cdk-lib/aws-sqs";
+import { SqsEventSource } from "aws-cdk-lib/aws-lambda-event-sources";
 
 export class DomainServiceStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -15,6 +17,37 @@ export class DomainServiceStack extends cdk.Stack {
 
     // importing students table arn
     const studentsTableArn = cdk.Fn.importValue("studentsTableArn");
+
+    // environment variable
+    const environment = {
+      REGION: cdk.Stack.of(this).region,
+      StudentsTable: "studentDomain",
+    };
+    // sqs queue - main queue
+
+    const dlq = new Queue(this, "DLQ-queue", {
+      queueName: "DLQueue",
+      visibilityTimeout: cdk.Duration.minutes(5),
+      retentionPeriod: cdk.Duration.days(1),
+    });
+
+    const mainQueue = new Queue(this, "main-queue", {
+      queueName: "mainQueue",
+      visibilityTimeout: cdk.Duration.minutes(5),
+      deadLetterQueue: { queue: dlq, maxReceiveCount: 2 },
+      retentionPeriod: cdk.Duration.days(1),
+    });
+
+    const sqsLambdaFunction = new NodejsFunction(this, "sqs-lambda", {
+      functionName: "sqs-lambda",
+      runtime: lambda.Runtime.NODEJS_20_X,
+      entry: join("./lambda/sqsLambda/index.ts"),
+      handler: "handler",
+      timeout: cdk.Duration.seconds(15),
+      environment: { ...environment, queueUrl: mainQueue.queueUrl },
+    });
+
+    sqsLambdaFunction.addEventSource(new SqsEventSource(mainQueue));
 
     // lambda function code
     // policy for lambda
@@ -43,12 +76,12 @@ export class DomainServiceStack extends cdk.Stack {
       resources: ["*"],
     });
 
-// kms policy statement
-const lambdaKMSPolicyStatement = new iam.PolicyStatement({
-  effect: iam.Effect.ALLOW,
-  actions: ["kms:Encrypt","kms:Decrypt"],
-  resources: ["*"],
-});
+    // kms policy statement
+    const lambdaKMSPolicyStatement = new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ["kms:Encrypt", "kms:Decrypt"],
+      resources: ["*"],
+    });
 
     // lambda policy
 
@@ -56,7 +89,7 @@ const lambdaKMSPolicyStatement = new iam.PolicyStatement({
       statements: [
         lambdaDynamoDbPolicyStatement,
         lambdaSecretsManagerPolicyStatement,
-        lambdaKMSPolicyStatement
+        lambdaKMSPolicyStatement,
       ],
     });
 
@@ -64,11 +97,6 @@ const lambdaKMSPolicyStatement = new iam.PolicyStatement({
     const postLambdaLogs = new LogGroup(this, "post-lambda-logs");
 
     const getLambdaLogs = new LogGroup(this, "get-lambda-logs");
-    // environment variable
-    const environment = {
-      REGION: cdk.Stack.of(this).region,
-      StudentsTable: "studentDomain",
-    };
 
     // lambda function
     const postLambdaFunction = new NodejsFunction(this, "post-lambda", {
@@ -80,6 +108,8 @@ const lambdaKMSPolicyStatement = new iam.PolicyStatement({
       environment: environment,
       logGroup: postLambdaLogs,
     });
+
+  
 
     const getLambdaFunction = new NodejsFunction(this, "get-lambda", {
       functionName: "get-lambda",
@@ -93,7 +123,19 @@ const lambdaKMSPolicyStatement = new iam.PolicyStatement({
 
     // attach policy
 
-    postLambdaFunction.role?.attachInlinePolicy(lambdaPolicy);
+    postLambdaFunction.role?.attachInlinePolicy(
+      new iam.Policy(this, "sqs-lambdaPolicy", {
+        statements: [
+          new iam.PolicyStatement({
+            effect: iam.Effect.ALLOW,
+            actions: ["sqs:SendMessage"],
+            resources: ["*"],
+          }),
+        ],
+      })
+    );
+
+    sqsLambdaFunction.role?.attachInlinePolicy(lambdaPolicy);
     getLambdaFunction.role?.attachInlinePolicy(lambdaPolicy);
     // api gateway
 
